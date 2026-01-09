@@ -11,7 +11,7 @@ import { TbUsersGroup } from "react-icons/tb";
 import { TiGroupOutline } from "react-icons/ti";
 import { BsFileEarmarkPptFill } from "react-icons/bs";
 import SaleModal from './SaleModal';
-import BuyModal from './buyModal';
+import BuyModal from './BuyModal';
 
 const InvoiceModal = ({setIsInvoiceModalOpen}) => {
     const navigate = useNavigate();
