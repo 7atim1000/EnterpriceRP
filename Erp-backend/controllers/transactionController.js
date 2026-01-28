@@ -80,7 +80,7 @@ const getTransactions = async(req, res) => {
         };
 
         // In your backend (getEmployees function)
-        let sortOption = {};
+        let sortOption = {createdAt: -1};
         if (sort === '-createdAt') {
             sortOption = { createdAt: -1 }; // Newest first
         } else if (sort === 'createdAt') {
