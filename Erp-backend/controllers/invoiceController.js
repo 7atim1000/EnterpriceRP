@@ -36,7 +36,8 @@ const getInvoices = async (req, res, next) => {
     try {
 
         const { frequency, type, invoiceType, invoiceStatus, shift, customer, supplier, sort ='-createdAt', search, page = 1, limit = 10 } = req.body;
-
+        
+        // Build query object
         const query = {
             invoiceDate: {
                 $gt: moment().subtract(Number(frequency), "d").toDate(),
@@ -62,7 +63,7 @@ const getInvoices = async (req, res, next) => {
             })
         };
 
-        let sortOption = {};
+        let sortOption = {createdAt: -1};
         if (sort === '-createdAt') {
             sortOption = { createdAt: -1 }; // Newest first
         } else if (sort === 'createdAt') {
@@ -70,7 +71,12 @@ const getInvoices = async (req, res, next) => {
         } 
 
         // Calculate pagination values
-        const startIndex = (page - 1) * limit;
+        // Calculate pagination values
+        const pageNum = Math.max(1, parseInt(page));
+        const limitNum = Math.max(1, parseInt(limit));
+        const startIndex = (pageNum - 1) * limitNum;
+        
+        // const startIndex = (page - 1) * limit;
         // const endIndex = page * limit;
         const total = await Invoice.countDocuments(query).populate([
             {
@@ -104,7 +110,7 @@ const getInvoices = async (req, res, next) => {
         ])
             .sort(sortOption)
             .skip(startIndex)
-            .limit(limit);
+            .limit(limitNum);
 
         res.status(200).json({
             message: 'All invoices fetched successfully',
@@ -113,10 +119,10 @@ const getInvoices = async (req, res, next) => {
             invoices,
 
             pagination: {
-                currentPage: Number(page),
-                limit: Number(limit),
+                currentPage: pageNum,
+                limit: limitNum,
                 total,
-                totalPages: Math.ceil(total / limit)
+                totalPages: Math.ceil(total / limitNum)
             }
         });
 
