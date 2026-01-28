@@ -17,6 +17,7 @@ const Transactions = () => {
     ];
 
     const [isAddTransactionModalOpen, setIsAddTransactionModalOpen] = useState(false);
+    
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState(''); 
@@ -35,37 +36,7 @@ const Transactions = () => {
     const handleOpenModal = (action) => {
         if (action === 'transaction') setIsAddTransactionModalOpen(true);
     };
-
-    // const fetchTransactions = (async () => {
-    //     setLoading(true);
-    //     try {
-    //         const response = await api.post('/api/transactions/get-transactions', {
-    //             paymentMethod,
-    //             frequency,
-    //             type,
-    //             shift,
-    //             search,
-    //             sort,
-    //             page: 1,
-    //             limit: 1000
-    //         });
-
-    //         if (response.data.success) {
-    //             setList(response.data.data || response.data.transactions || []);
-    //         } else {
-    //             toast.error(response.data.message || 'Transactions not found');
-    //         }
-    //     } catch (error) {
-    //         if (error.response?.data?.message) {
-    //             toast.error(error.response.data.message);
-    //         } else {
-    //             toast.error(error.message);
-    //         }
-    //         console.log(error);
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // });
+    
      const [pagination, setPagination] = useState({
             currentPage: 1,
             itemsPerPage: 10,
@@ -73,63 +44,85 @@ const Transactions = () => {
             totalPages: 1
         });
 
-    const fetchTransactions = async (search = '') => {
-            try {
-    
-                const response = await api.post('/api/transactions/get-transactions',
-                    // { sort }, { params: {search} }
-                    {
-                        frequency,
-                        type,
-                        shift,
-                        search,
-                        sort,
-                        page: pagination.currentPage,
-                        limit: pagination.itemsPerPage
-                    }
-                );
-    
-                if (response.data.success) {
-                    //setList(response.data.employees)
-                    setList(response.data.data || response.data.transactions || []);
-                    console.log(response.data.data)
-                    // Only update pagination if the response contains valid data
-                    if (response.data.pagination) {
-                        setPagination(prev => ({
-                            ...prev,  // Keep existing values
-                            currentPage: response.data.pagination.currentPage ?? prev.currentPage,
-                            itemsPerPage: response.data.pagination.limit ?? prev.itemsPerPage,
-                            totalItems: response.data.pagination.total ?? prev.totalItems,
-                            totalPages: response.data.pagination.totalPages ?? prev.totalPages
-                        }));
-                    }
-    
-    
-                } else {
-                    toast.error(response.data.message || 'Transactions is not found')
-                }
-    
-            } catch (error) {
-                // Show backend error message if present in error.response
-                if (error.response && error.response.data && error.response.data.message) {
-                    toast.error(error.response.data.message);
-                } else {
-                    toast.error(error.message)
-                }
-                console.log(error)
+     const fetchTransactions = async (searchParam = '') => {
+    setLoading(true);
+    try {
+        const response = await api.post('/api/transactions/get-transactions', {
+            frequency,
+            type: type === 'all' ? '' : type,
+            shift: shift === 'all' ? '' : shift,
+            paymentMethod: paymentMethod === 'all' ? '' : paymentMethod,
+            search: searchParam || search,
+            sort,
+            page: pagination.currentPage,
+            limit: pagination.itemsPerPage
+        });
+
+        if (response.data.success) {
+            setList(response.data.data || response.data.transactions || []);
+            
+            if (response.data.pagination) {
+                setPagination(prev => ({
+                    ...prev,
+                    currentPage: response.data.pagination.currentPage ?? prev.currentPage,
+                    itemsPerPage: response.data.pagination.limit ?? prev.itemsPerPage,
+                    totalItems: response.data.pagination.total ?? prev.totalItems,
+                    totalPages: response.data.pagination.totalPages ?? prev.totalPages
+                }));
             }
-        }
-    
-
-    const isInitialMount = useRef(true);
-    useEffect(() => {
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
         } else {
-            fetchTransactions();
+            toast.error(response.data.message || 'Transactions not found');
+            setList([]);
         }
-    }, [paymentMethod, frequency, shift, type, search, sort]);
+    } catch (error) {
+        if (error.response?.data?.message) {
+            toast.error(error.response.data.message);
+        } else {
+            toast.error('Failed to fetch transactions');
+        }
+        console.error('Error fetching transactions:', error);
+        setList([]);
+    } finally {
+        setLoading(false);
+    }
+}
 
+// Fetch on mount and when filters change
+useEffect(() => {
+    fetchTransactions();
+}, [frequency, type, shift, paymentMethod, sort, pagination.currentPage]);
+
+// Debounced search effect
+useEffect(() => {
+    const timer = setTimeout(() => {
+        if (search !== '') {
+            // Reset to page 1 when searching
+            setPagination(prev => ({ ...prev, currentPage: 1 }));
+            fetchTransactions(search);
+        } else if (search === '') {
+            fetchTransactions('');
+        }
+    }, 500);
+
+    return () => clearTimeout(timer);
+}, [search]);
+
+// If you need to refetch when pagination changes (page size)
+useEffect(() => {
+    // Reset to page 1 when changing items per page
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+}, [pagination.itemsPerPage]);
+
+// Optional: Handle pagination changes
+const handlePageChange = (newPage) => {
+    setPagination(prev => ({ ...prev, currentPage: newPage }));
+};
+
+const handleItemsPerPageChange = (newLimit) => {
+    setPagination(prev => ({ ...prev, itemsPerPage: newLimit, currentPage: 1 }));
+};
+
+    
     const handleEdit = (transaction) => {
         setCurrentTransaction(transaction);
         setIsEditTransactionModal(true);
