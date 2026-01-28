@@ -38,56 +38,98 @@ const InvManagement = () => {
     });
   
     // fetch Invoices
-    const fetchInvoices = async (search = '') => {
-        // setLoading(true)
+    const fetchInvoices = async (searchParam = '') => {
+        setLoading(true);
         try {
-            const response = await api.post('/api/invoice/fetch', 
-            {
-                type,
+            const response = await api.post('/api/invoice/fetch', {
+                type: type === 'all' ? '' : type,
                 frequency,
-                invoiceType,
-                invoiceStatus,
-                customer,
-                supplier,
-                shift,
-                search,
+                invoiceType: invoiceType === 'all' ? '' : invoiceType,
+                invoiceStatus: invoiceStatus === 'all' ? '' : invoiceStatus,
+                customer: customer === 'all' ? '' : customer,
+                supplier: supplier === 'all' ? '' : supplier,
+                shift: shift === 'all' ? '' : shift,
+                search: searchParam || search,
                 sort,
-                
                 page: pagination.currentPage,
                 limit: pagination.itemsPerPage
             });
                 
             if (response.data.success) {
-                setAllInvoices(response.data.data || response.data.invoices || []);
+                // Check both possible response formats
+                const invoices = response.data.data || response.data.invoices || [];
+                setAllInvoices(invoices);
                 
                 if (response.data.pagination) {
-                    setPagination(prev => ({
-                        ...prev,  // Keep existing values
-                        currentPage: response.data.pagination.currentPage ?? prev.currentPage,
-                        itemsPerPage: response.data.pagination.limit ?? prev.itemsPerPage,
-                        totalItems: response.data.pagination.total ?? prev.totalItems,
-                        totalPages: response.data.pagination.totalPages ?? prev.totalPages
-                    }));
-                };
-            
+                    setPagination({
+                        currentPage: response.data.pagination.currentPage || 1,
+                        itemsPerPage: response.data.pagination.limit || 10,
+                        totalItems: response.data.pagination.total || 0,
+                        totalPages: response.data.pagination.totalPages || 1
+                    });
+                }
+                
+                // If no data but API was successful, show message
+                if (invoices.length === 0) {
+                    toast.info('No invoices found with current filters');
+                }
             } else {
-                toast.error(response.data.message || 'Invoices not found')
+                toast.error(response.data.message || 'Failed to fetch invoices');
+                setAllInvoices([]);
             }
     
         } catch (error) {
-            console.log(error)
-            toast.error(error.message)
+            console.error('Error fetching invoices:', error);
+            toast.error(error.response?.data?.message || 'Failed to load invoices');
+            setAllInvoices([]);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const isInitialMount = useRef(true);
+    // Fetch on mount and when filters change
     useEffect(() => {
-        if (isInitialMount.current) {
-            isInitialMount.current = false;
-        } else {
-            fetchInvoices();
-        }
-    }, [type, frequency, invoiceType, invoiceStatus, shift, search, sort]);
+        fetchInvoices();
+    }, [type, frequency, invoiceType, invoiceStatus, shift, customer, supplier, sort, pagination.currentPage]);
+
+    // Debounced search effect
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (search !== '') {
+                // Reset to page 1 when searching
+                setPagination(prev => ({ ...prev, currentPage: 1 }));
+                fetchInvoices(search);
+            } else if (search === '') {
+                fetchInvoices('');
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // Handle page change
+    const handlePageChange = (newPage) => {
+        setPagination(prev => ({ ...prev, currentPage: newPage }));
+    };
+
+    // Handle reset filters
+    const handleReset = () => {
+        setType('all');
+        setFrequency('30');
+        setInvoiceType('all');
+        setInvoiceStatus('all');
+        setShift('all');
+        setCustomer('all');
+        setSupplier('all');
+        setSearch('');
+        setSort('-createdAt');
+        setPagination({
+            currentPage: 1,
+            itemsPerPage: 10,
+            totalItems: 0,
+            totalPages: 1
+        });
+    };
 
     // Percentage and count
     const totalInvoices = allInvoices.length;  
