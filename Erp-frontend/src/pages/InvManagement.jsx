@@ -29,10 +29,17 @@ const InvManagement = () => {
     const [search, setSearch] = useState('');
     const [sort, setSort] = useState('-createdAt');
     const [loading, setLoading] = useState(false);
+
+   const [pagination, setPagination] = useState({
+        currentPage: 1,
+        itemsPerPage: 10,
+        totalItems: 0,
+        totalPages: 1
+    });
   
     // fetch Invoices
-    const fetchInvoices = async () => {
-        setLoading(true)
+    const fetchInvoices = async (search = '') => {
+        // setLoading(true)
         try {
             const response = await api.post('/api/invoice/fetch', 
             {
@@ -45,25 +52,31 @@ const InvManagement = () => {
                 shift,
                 search,
                 sort,
-                page: 1,
-                limit: 1000
+                
+                page: pagination.currentPage,
+                limit: pagination.itemsPerPage
             });
                 
             if (response.data.success) {
-                setAllInvoices(response.data.data || []);
+                setAllInvoices(response.data.data || response.data.invoices || []);
+                
+                if (response.data.pagination) {
+                    setPagination(prev => ({
+                        ...prev,  // Keep existing values
+                        currentPage: response.data.pagination.currentPage ?? prev.currentPage,
+                        itemsPerPage: response.data.pagination.limit ?? prev.itemsPerPage,
+                        totalItems: response.data.pagination.total ?? prev.totalItems,
+                        totalPages: response.data.pagination.totalPages ?? prev.totalPages
+                    }));
+                };
+            
             } else {
                 toast.error(response.data.message || 'Invoices not found')
             }
     
         } catch (error) {
-            if (error.response?.data?.message) {
-                toast.error(error.response.data.message);
-            } else {
-                toast.error(error.message)
-            }
             console.log(error)
-        } finally {
-            setLoading(false);
+            toast.error(error.message)
         }
     };
 
